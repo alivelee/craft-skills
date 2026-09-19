@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """
 render_card.py
-Renders high-quality 3:4 aspect ratio (1080x1440) Xiaohongshu image cards using PIL.
-Supports Cover, Checklist, Data Comparison, and Key Takeaway cards.
-Features:
-- NotoColorEmoji native composite rendering for crisp emojis (🎾, 🔥, etc.)
-- Dynamic pill badges with pixel-accurate text measurement and centering
-- Smart Chinese line-wrapping respecting punctuation rules and word boundaries
-- High-contrast athletic dark theme (tennis neon green + flame orange + deep navy)
+Renders high-quality 3:4 aspect ratio (1080x1440) Xiaohongshu image cards for Photography Magazine summaries.
+Supported Card Types:
+- cover: Gallery-style title cover with master insight & pill tags
+- checklist: Step-by-step shooting formula & practical advice
+- comparison: "Amateur Pitfalls vs Master Perspective" visual breakdown
 """
 
 import sys
@@ -19,17 +17,24 @@ from PIL import Image, ImageDraw, ImageFont
 WIDTH = 1080
 HEIGHT = 1440
 
-# Colors
-BG_DARK = (20, 24, 33)        # 深空深蓝黑，高端学术运动感
-CARD_BG = (30, 36, 49)        # 卡片背景色
-ACCENT_GREEN = (180, 230, 30) # 网球荧光黄绿
-TEXT_WHITE = (255, 255, 255)  # 纯白
-TEXT_MUTED = (160, 172, 193)  # 辅助浅灰蓝
-ACCENT_ORANGE = (255, 112, 67)# 警示/痛点橙红
-LINE_BORDER = (45, 54, 72)    # 边框深色
+# Colors (Gallery Darkroom Aesthetic)
+BG_DARK = (18, 20, 26)         # 深邃哑光暗夜灰
+CARD_BG = (28, 32, 42)         # 典雅暗房画廊卡片底色
+ACCENT_GOLD = (245, 171, 53)   # 经典胶片琥珀金 (核心视觉强调)
+ACCENT_RED = (255, 60, 75)     # 小红书/徕卡标杆红
+ACCENT_CYAN = (78, 205, 196)   # 胶片冷调青 (辅助对比)
+TEXT_WHITE = (255, 255, 255)   # 纯白
+TEXT_MUTED = (165, 175, 195)   # 辅助冷灰字
+LINE_BORDER = (45, 52, 68)     # 分割线与外边框
 
-# Font detection
+# Font Candidates
 FONT_CANDIDATES = [
+    # macOS
+    "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/Supplemental/Songti.ttc",
+    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+    "/Library/Fonts/Songti.ttc",
+    "/Library/Fonts/Arial Unicode.ttf",
     # Linux
     "/usr/share/fonts/harmonyos-sans/HarmonyOS_Sans_SC.ttf",
     "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
@@ -38,12 +43,6 @@ FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
     "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc",
     "/usr/share/fonts/wenquanyi/wqy-zenhei/wqy-zenhei.ttc",
-    # macOS
-    "/System/Library/Fonts/PingFang.ttc",
-    "/System/Library/Fonts/Supplemental/Songti.ttc",
-    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-    "/Library/Fonts/Songti.ttc",
-    "/Library/Fonts/Arial Unicode.ttf",
     # Windows
     "C:\\Windows\\Fonts\\msyh.ttc",
     "C:\\Windows\\Fonts\\simhei.ttf",
@@ -51,9 +50,9 @@ FONT_CANDIDATES = [
 ]
 
 EMOJI_FONT_CANDIDATES = [
+    "/System/Library/Fonts/Apple Color Emoji.ttc",
     "/usr/share/fonts/noto/NotoColorEmoji.ttf",
     "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
-    "/System/Library/Fonts/Apple Color Emoji.ttc",
     "C:\\Windows\\Fonts\\seguiemj.ttf",
 ]
 
@@ -68,7 +67,7 @@ def get_font(size: int, bold: bool = False):
     return ImageFont.load_default()
 
 def get_emoji_img(char: str, target_size: int = 34):
-    """Render a colored emoji using NotoColorEmoji if available."""
+    """Render emoji icon cleanly."""
     emoji_font_path = None
     for p in EMOJI_FONT_CANDIDATES:
         if os.path.exists(p):
@@ -119,10 +118,10 @@ def wrap_text_by_width(text: str, font, max_width: int, max_lines: int = 6):
     return lines[:max_lines]
 
 def split_title(title: str, font, max_w: int = 940):
-    """Split title semantically into 2 lines."""
+    """Split title semantically into 2 or 3 lines."""
     if "\n" in title:
         return [l.strip() for l in title.split("\n") if l.strip()]
-    for punct in ["？", "?", "！", "!", "：", ":", " "]:
+    for punct in ["？", "?", "！", "!", "：", ":", "——", " "]:
         if punct in title:
             parts = title.split(punct, 1)
             left = parts[0] + (punct if punct not in [" ", ""] else "")
@@ -134,17 +133,16 @@ def split_title(title: str, font, max_w: int = 940):
                     return [left, right]
     return wrap_text_by_width(title, font, max_w, max_lines=4)
 
-def draw_header_badge(img: Image.Image, draw: ImageDraw.ImageDraw, text="科学网球 · 论文精读"):
-    """Draw top branding badge with tennis icon."""
-    clean_text = text.replace("🎾", "").strip()
+def draw_header_badge(img: Image.Image, draw: ImageDraw.ImageDraw, text="摄影杂志 · 视觉精读", icon_char="📷"):
+    """Draw top branding badge with photography icon."""
     font_badge = get_font(28, bold=True)
-    bbox = draw.textbbox((0, 0), clean_text, font=font_badge)
+    bbox = draw.textbbox((0, 0), text, font=font_badge)
     tw = bbox[2] - bbox[0]
     th = bbox[3] - bbox[1]
 
-    tennis_icon = get_emoji_img('🎾', 30)
-    icon_w = tennis_icon.width if tennis_icon else 0
-    gap = 10 if tennis_icon else 0
+    cam_icon = get_emoji_img(icon_char, 30)
+    icon_w = cam_icon.width if cam_icon else 0
+    gap = 10 if cam_icon else 0
 
     pad_left = 18
     pad_right = 22
@@ -157,46 +155,46 @@ def draw_header_badge(img: Image.Image, draw: ImageDraw.ImageDraw, text="科学�
     radius = total_h // 2
 
     # Draw pill badge
-    draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=radius, fill=(38, 48, 66), outline=ACCENT_GREEN, width=2)
+    draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=radius, fill=(34, 39, 52), outline=ACCENT_GOLD, width=2)
 
     # Paste icon
-    if tennis_icon:
+    if cam_icon:
         ix = x0 + pad_left
-        iy = y0 + (total_h - tennis_icon.height) // 2
-        img.paste(tennis_icon, (ix, iy), tennis_icon)
+        iy = y0 + (total_h - cam_icon.height) // 2
+        img.paste(cam_icon, (ix, iy), cam_icon)
         tx = ix + icon_w + gap
     else:
         tx = x0 + pad_left
 
     ty = y0 + (total_h - th) // 2 - bbox[1]
-    draw.text((tx, ty), clean_text, font=font_badge, fill=ACCENT_GREEN)
+    draw.text((tx, ty), text, font=font_badge, fill=ACCENT_GOLD)
 
-def draw_footer(draw, text="收藏实践 · 关注进阶更多球场科学"):
+def draw_footer(draw, text="收藏实践 · 翻完一本好杂志"):
     """Draw bottom footer bar."""
     font_foot = get_font(26)
     draw.line([(70, HEIGHT - 110), (WIDTH - 70, HEIGHT - 110)], fill=LINE_BORDER, width=2)
     draw.text((70, HEIGHT - 85), text, font=font_foot, fill=TEXT_MUTED)
-    draw.text((WIDTH - 250, HEIGHT - 85), "@网球生物力学", font=font_foot, fill=ACCENT_GREEN)
+    draw.text((WIDTH - 280, HEIGHT - 85), "@摄影美学精读", font=font_foot, fill=ACCENT_GOLD)
 
 def render_cover(title: str, subtitle: str, tag: str, output_path: str):
-    """Render Xiaohongshu 3:4 Cover Card with fixed tag styling."""
+    """Render Xiaohongshu 3:4 Cover Card for Photography Magazine."""
     img = Image.new("RGB", (WIDTH, HEIGHT), BG_DARK)
     draw = ImageDraw.Draw(img)
     
     # 1. Top badge
-    draw_header_badge(img, draw)
+    draw_header_badge(img, draw, text="摄影杂志 · 视觉精读", icon_char="📷")
     
-    # 2. Tag chip (Properly sized pill with flame icon and dynamic text centering)
+    # 2. Tag chip (Properly sized pill with flame/film icon)
     if tag:
-        clean_tag = tag.replace("🔥", "").strip()
+        clean_tag = tag.replace("🔥", "").replace("🎞️", "").strip()
         font_tag = get_font(30, bold=True)
         bbox = draw.textbbox((0, 0), clean_tag, font=font_tag)
         tw = bbox[2] - bbox[0]
         th = bbox[3] - bbox[1]
 
-        flame_icon = get_emoji_img('🔥', 32)
-        icon_w = flame_icon.width if flame_icon else 0
-        gap = 10 if flame_icon else 0
+        film_icon = get_emoji_img('🎞️', 32)
+        icon_w = film_icon.width if film_icon else 0
+        gap = 10 if film_icon else 0
 
         pad_left = 18
         pad_right = 24
@@ -208,13 +206,13 @@ def render_cover(title: str, subtitle: str, tag: str, output_path: str):
         x1, y1 = x0 + total_w, y0 + total_h
         radius = total_h // 2
 
-        # Rounded pill in ACCENT_ORANGE
-        draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=radius, fill=ACCENT_ORANGE)
+        # Rounded pill in ACCENT_RED
+        draw.rounded_rectangle([(x0, y0), (x1, y1)], radius=radius, fill=ACCENT_RED)
 
-        if flame_icon:
+        if film_icon:
             fx = x0 + pad_left
-            fy = y0 + (total_h - flame_icon.height) // 2
-            img.paste(flame_icon, (fx, fy), flame_icon)
+            fy = y0 + (total_h - film_icon.height) // 2
+            img.paste(film_icon, (fx, fy), film_icon)
             tx = fx + icon_w + gap
         else:
             tx = x0 + pad_left
@@ -228,18 +226,18 @@ def render_cover(title: str, subtitle: str, tag: str, output_path: str):
         
     y = 280
     for i, line in enumerate(title_lines):
-        # Highlight last line with tennis accent color if more than 1 line
-        color = ACCENT_GREEN if i == len(title_lines) - 1 and len(title_lines) > 1 else TEXT_WHITE
+        # Highlight last line with amber accent color if more than 1 line
+        color = ACCENT_GOLD if i == len(title_lines) - 1 and len(title_lines) > 1 else TEXT_WHITE
         draw.text((70, y), line, font=font_title, fill=color)
         y += 105
 
-    # 4. Center card with Subtitle / Key Hook
+    # 4. Center card with Subtitle / Master Insight
     card_top = max(y + 35, 680)
     card_bottom = min(card_top + 450, HEIGHT - 160)
     draw.rounded_rectangle([(70, card_top), (WIDTH - 70, card_bottom)], radius=24, fill=CARD_BG, outline=LINE_BORDER, width=3)
     
     font_sub_title = get_font(38, bold=True)
-    draw.text((110, card_top + 45), "🔬 实验颠覆性结论：", font=font_sub_title, fill=ACCENT_GREEN)
+    draw.text((110, card_top + 45), "💡 顶级杂志大师洞察：", font=font_sub_title, fill=ACCENT_GOLD)
     
     font_sub = get_font(34)
     available_w = WIDTH - 140 - 80
@@ -255,10 +253,10 @@ def render_cover(title: str, subtitle: str, tag: str, output_path: str):
     print(f"Cover card saved to: {output_path}")
 
 def render_checklist(title: str, points: list, output_path: str):
-    """Render Actionable On-Court Checklist Card."""
+    """Render Actionable Photography Shooting / Composition Checklist Card."""
     img = Image.new("RGB", (WIDTH, HEIGHT), BG_DARK)
     draw = ImageDraw.Draw(img)
-    draw_header_badge(img, draw, text="球场实操 · 动作指南")
+    draw_header_badge(img, draw, text="实操拆解 · 拍摄配方", icon_char="📐")
     
     # Title
     font_title = get_font(56, bold=True)
@@ -271,7 +269,7 @@ def render_checklist(title: str, points: list, output_path: str):
     font_num = get_font(26, bold=True)
     
     for i, pt in enumerate(points[:4]):
-        item_title = pt.get("title", f"动作要点 {i+1}")
+        item_title = pt.get("title", f"拍摄要点 {i+1}")
         item_desc = pt.get("desc", "")
         
         # Draw item card
@@ -286,8 +284,8 @@ def render_checklist(title: str, points: list, output_path: str):
         badge_w = nw + 20
         badge_h = 40
         bx0, by0 = 105, y + 26
-        draw.rounded_rectangle([(bx0, by0), (bx0 + badge_w, by0 + badge_h)], radius=10, fill=(38, 48, 66), outline=ACCENT_GREEN, width=1)
-        draw.text((bx0 + 10, by0 + (badge_h - nh)//2 - num_bbox[1]), num_str, font=font_num, fill=ACCENT_GREEN)
+        draw.rounded_rectangle([(bx0, by0), (bx0 + badge_w, by0 + badge_h)], radius=10, fill=(38, 44, 58), outline=ACCENT_GOLD, width=1)
+        draw.text((bx0 + 10, by0 + (badge_h - nh)//2 - num_bbox[1]), num_str, font=font_num, fill=ACCENT_GOLD)
 
         # Title of box
         draw.text((bx0 + badge_w + 16, y + 26), item_title, font=font_item_title, fill=TEXT_WHITE)
@@ -307,13 +305,75 @@ def render_checklist(title: str, points: list, output_path: str):
     img.save(output_path, quality=95)
     print(f"Checklist card saved to: {output_path}")
 
+def render_comparison(title: str, amateur: dict, master: dict, output_path: str):
+    """Render Amateur Pitfalls vs Master Vision Comparison Card."""
+    img = Image.new("RGB", (WIDTH, HEIGHT), BG_DARK)
+    draw = ImageDraw.Draw(img)
+    draw_header_badge(img, draw, text="避坑对照 · 认知跃迁", icon_char="🔍")
+    
+    # Title
+    font_title = get_font(54, bold=True)
+    draw.text((70, 160), title, font=font_title, fill=TEXT_WHITE)
+    
+    # Box 1: Amateur Pitfall
+    y1 = 265
+    box_h = 430
+    draw.rounded_rectangle([(70, y1), (WIDTH - 70, y1 + box_h)], radius=22, fill=(35, 26, 30), outline=ACCENT_RED, width=2)
+    
+    font_tag = get_font(26, bold=True)
+    tag1_text = "新手常见盲区"
+    t1_bbox = draw.textbbox((0, 0), tag1_text, font=font_tag)
+    t1_w = t1_bbox[2] - t1_bbox[0]
+    t1_h = t1_bbox[3] - t1_bbox[1]
+    draw.rounded_rectangle([(105, y1 + 26), (105 + t1_w + 32, y1 + 26 + t1_h + 20)], radius=10, fill=ACCENT_RED)
+    draw.text((121, y1 + 36 - t1_bbox[1]), tag1_text, font=font_tag, fill=TEXT_WHITE)
+    
+    font_item_title = get_font(36, bold=True)
+    draw.text((105, y1 + 95), amateur.get("title", "盲目依赖大光圈虚化"), font=font_item_title, fill=TEXT_WHITE)
+    
+    font_item_body = get_font(30)
+    amateur_desc = amateur.get("desc", "只顾把背景完全虚化，忽略了环境叙事与主体互动，导致照片毫无张力与记忆点。")
+    alines = wrap_text_by_width(amateur_desc, font_item_body, WIDTH - 210, max_lines=4)
+    ay = y1 + 160
+    for al in alines:
+        draw.text((105, ay), al, font=font_item_body, fill=(230, 190, 195))
+        ay += 46
+
+    # Box 2: Master Perspective
+    y2 = y1 + box_h + 35
+    draw.rounded_rectangle([(70, y2), (WIDTH - 70, y2 + box_h)], radius=22, fill=(28, 36, 44), outline=ACCENT_GOLD, width=2)
+    
+    tag2_text = "杂志大师解法"
+    t2_bbox = draw.textbbox((0, 0), tag2_text, font=font_tag)
+    t2_w = t2_bbox[2] - t2_bbox[0]
+    t2_h = t2_bbox[3] - t2_bbox[1]
+    draw.rounded_rectangle([(105, y2 + 26), (105 + t2_w + 32, y2 + 26 + t2_h + 20)], radius=10, fill=ACCENT_GOLD)
+    draw.text((121, y2 + 36 - t2_bbox[1]), tag2_text, font=font_tag, fill=(18, 20, 26))
+    
+    draw.text((105, y2 + 95), master.get("title", "收小光圈，构建多层叙事"), font=font_item_title, fill=TEXT_WHITE)
+    
+    master_desc = master.get("desc", "收光圈至 f/5.6~f/8，利用前景框架与景深层级交代环境，用光影反差自然引导视觉焦点。")
+    mlines = wrap_text_by_width(master_desc, font_item_body, WIDTH - 210, max_lines=4)
+    my = y2 + 160
+    for ml in mlines:
+        draw.text((105, my), ml, font=font_item_body, fill=TEXT_MUTED)
+        my += 46
+        
+    draw_footer(draw)
+    img.save(output_path, quality=95)
+    print(f"Comparison card saved to: {output_path}")
+
 def main():
-    parser = argparse.ArgumentParser(description="Render Xiaohongshu Image Cards")
-    parser.add_argument("--type", choices=["cover", "checklist"], default="cover")
+    parser = argparse.ArgumentParser(description="Render Xiaohongshu Photography Cards")
+    parser.add_argument("--type", choices=["cover", "checklist", "comparison"], default="cover")
     parser.add_argument("--title", required=True, help="Main title")
     parser.add_argument("--subtitle", default="", help="Subtitle / Key conclusion")
-    parser.add_argument("--tag", default="网球进阶", help="Tag pill")
+    parser.add_argument("--tag", default="构图进阶", help="Tag pill")
     parser.add_argument("--points", nargs="*", help="Key points for checklist format: 'Title|Desc'")
+    parser.add_argument("--amateur-title", default="死记硬背九宫格构图", help="Amateur title for comparison")
+    parser.add_argument("--amateur-desc", default="把主体机械放在交叉点，画面呆板没有张力与呼吸感。", help="Amateur desc")
+    parser.add_argument("--master-title", default="用视线引导与负空间建立张力", help="Master title for comparison")
+    parser.add_argument("--master-desc", default="根据被摄体朝向留出视觉呼吸感，利用光线明暗对比自然牵引目光。", help="Master desc")
     parser.add_argument("--output", default="card.png", help="Output file path")
     args = parser.parse_args()
 
@@ -327,11 +387,16 @@ def main():
                 pts.append({"title": parts[0], "desc": parts[1] if len(parts) > 1 else ""})
         else:
             pts = [
-                {"title": "击球前髋部预制动", "desc": "骨盆提前刹车才能把转动动量传递到肩胸关节"},
-                {"title": "拍头下沉与外旋蓄力", "desc": "不要用手腕死掰，前臂被动外旋受力更自然"},
-                {"title": "沿击球轴完整随挥", "desc": "随挥不完全会导致伸肌腱吸收 30% 额外冲击力"}
+                {"title": "焦段视角与透视选择", "desc": "35mm交代人与环境关系，50mm呈现真实纪实视角，85mm提炼几何关系"},
+                {"title": "光影雕刻：寻找侧逆光", "desc": "避开正午直射光，利用侧逆光在边缘勾勒高光轮廓，增强立体雕刻感"},
+                {"title": "极简减法与框架借景", "desc": "先做减法剔除杂物，利用门窗、阴影或树枝形成自然画框引导视线"},
+                {"title": "快门时机：决定性瞬间", "desc": "提前预判主体行进路线，设置快门优先或连拍，在肢体张力最强一瞬按下"}
             ]
         render_checklist(args.title, pts, args.output)
+    elif args.type == "comparison":
+        amateur = {"title": args.amateur_title, "desc": args.amateur_desc}
+        master = {"title": args.master_title, "desc": args.master_desc}
+        render_comparison(args.title, amateur, master, args.output)
 
 if __name__ == "__main__":
     main()
