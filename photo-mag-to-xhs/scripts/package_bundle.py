@@ -48,7 +48,8 @@ def main():
         ext = os.path.splitext(img_path)[1] or ".png"
         dest_name = f"slide_{i+1:02d}{ext}"
         dest_path = os.path.join(args.dir, dest_name)
-        shutil.copyfile(img_path, dest_path)
+        if os.path.abspath(img_path) != os.path.abspath(dest_path):
+            shutil.copyfile(img_path, dest_path)
         copied_imgs.append(dest_name)
 
     # Format tags and post
