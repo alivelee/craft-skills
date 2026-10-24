@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "750f580f-e429-4113-8131-4e1ed4bfb1a7",
+  "path": "tennis-paper-to-xhs",
+  "path_key": "tennis-paper-to-xhs",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

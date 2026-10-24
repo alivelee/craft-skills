@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "fea0fb04-3264-40d2-9d2b-9065abcd1a43",
+  "path": "photo-mag-to-xhs",
+  "path_key": "photo-mag-to-xhs",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

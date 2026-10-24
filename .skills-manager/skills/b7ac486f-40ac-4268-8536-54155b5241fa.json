@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "b7ac486f-40ac-4268-8536-54155b5241fa",
+  "path": "github-repo-analysis",
+  "path_key": "github-repo-analysis",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}
