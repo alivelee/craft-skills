@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "scenario_id": "92119088-5c5d-4ba0-82ef-6fd57e735938",
+  "skill_id": "b7ac486f-40ac-4268-8536-54155b5241fa",
+  "sort_order": 0,
+  "tools": {
+    "antigravity": true,
+    "codex": true,
+    "deepseek_harness": true,
+    "gemini_cli": true,
+    "github_copilot": true,
+    "kimi": true,
+    "pi": true,
+    "zcode": true
+  }
+}
